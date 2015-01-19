@@ -4,30 +4,42 @@ from collections import namedtuple
 Project = namedtuple('Project', ['sources', 'headers'])
 
 
-class Parser:
-    project = Project([], [])
-
-    def __parse_item_group(self, itemgroup):
-        for f in itemgroup.findall('ClCompile'):
-            self.project.sources.append(f.attrib['Include'])
-        for f in itemgroup.findall('ClInclude'):
-            self.project.headers.append(f.attrib['Include'])
-
-    def __parse_project(self, root):
-        for item in root:
-            if item.tag == 'ItemGroup':
-                self.__parse_item_group(item)
-
-    def parse(self, tree):
-        self.project = Project([], [])
-        root = tree.getroot()
-
-        self.__parse_project(root)
-        return self.project
+def check_condition(root, project):
+    if 'Condition' in root.attrib:
+        print 'checking cond:', root.attrib['Condition'], 'in', root.tag
+    return True
 
 
-parser = Parser()
-project = parser.parse(ET.parse('objects.vcxproj.xml'))
+def mk(parsers):
+    def f(root, p):
+        for child in root:
+            if child.tag in parsers:
+                if check_condition(child, p):
+                    parsers[child.tag](child, p)
+    return f
+
+
+item_group_parser = mk({
+    'ClCompile': (lambda e, proj: proj.sources.append(e.attrib['Include'])),
+    'ClInclude': (lambda e, proj: proj.headers.append(e.attrib['Include'])),
+})
+
+
+def prop_group(root, project):
+    pass
+
+project_parser = mk({
+    'ItemGroup': item_group_parser,
+    'PropertyGroup': prop_group,
+})
+
+
+tree = ET.parse('objects.vcxproj.xml')
+root = tree.getroot()
+
+project = Project([], [])
+
+project_parser(root, project)
 
 print project.sources
 print project.headers
