@@ -3,19 +3,31 @@ from collections import namedtuple
 
 Project = namedtuple('Project', ['sources', 'headers'])
 
-def parseTree(tree):
-    root = tree.getroot()
+
+class Parser:
     project = Project([], [])
 
-    for itemgroup in root.findall('ItemGroup'):
+    def __parse_item_group(self, itemgroup):
         for f in itemgroup.findall('ClCompile'):
-            project.sources.append(f.attrib['Include'])
+            self.project.sources.append(f.attrib['Include'])
         for f in itemgroup.findall('ClInclude'):
-            project.headers.append(f.attrib['Include'])
+            self.project.headers.append(f.attrib['Include'])
 
-    return project
+    def __parse_project(self, root):
+        for item in root:
+            if item.tag == 'ItemGroup':
+                self.__parse_item_group(item)
 
-project = parseTree(ET.parse('objects.vcxproj.xml'))
+    def parse(self, tree):
+        self.project = Project([], [])
+        root = tree.getroot()
+
+        self.__parse_project(root)
+        return self.project
+
+
+parser = Parser()
+project = parser.parse(ET.parse('objects.vcxproj.xml'))
 
 print project.sources
 print project.headers
