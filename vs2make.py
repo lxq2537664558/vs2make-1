@@ -6,7 +6,7 @@ Project = namedtuple('Project', ['sources', 'headers'])
 
 def check_condition(root, project):
     if 'Condition' in root.attrib:
-        print 'checking cond:', root.attrib['Condition'], 'in', root.tag
+        print 'checking condition:', root.attrib['Condition'], 'in', root.tag
     return True
 
 
@@ -34,7 +34,7 @@ project_parser = mk({
 })
 
 
-tree = ET.parse('objects.vcxproj.xml')
+tree = ET.parse('test_proj.vcxproj.xml')
 root = tree.getroot()
 
 project = Project([], [])
