@@ -4,42 +4,53 @@ from collections import namedtuple
 Project = namedtuple('Project', ['sources', 'headers'])
 
 
-def check_condition(root, project):
-    if 'Condition' in root.attrib:
-        print 'checking condition:', root.attrib['Condition'], 'in', root.tag
-    return True
+class Parser:
+    project = Project([], [])
 
+    def check_condition(self, e):
+        if 'Condition' in e.attrib:
+            print 'Checking', e.attrib['Condition'], 'for', e.tag
+        return True
 
-def mk(parsers):
-    def f(root, p):
+    def mk(self, root, parsers):
         for child in root:
             if child.tag in parsers:
-                if check_condition(child, p):
-                    parsers[child.tag](child, p)
-    return f
+                if self.check_condition(root):
+                    parsers[child.tag](child)
+
+    def parse_cpp(self, e):
+        self.project.sources.append(e.attrib['Include'])
+
+    def parse_h(self, e):
+        self.project.headers.append(e.attrib['Include'])
+
+    def parse_item_group(self, e):
+        parsers = {
+            'ClCompile': self.parse_cpp,
+            'ClInclude': self.parse_h,
+        }
+        self.mk(e, parsers)
+
+    def parse_project(self, e):
+        parsers = {
+            'ItemGroup': self.parse_item_group
+        }
+        self.mk(e, parsers)
+
+    def parse(self, tree):
+        root = tree.getroot()
+        self.project = Project([], [])
+        self.parse_project(root)
+        return self.project
 
 
-item_group_parser = mk({
-    'ClCompile': (lambda e, proj: proj.sources.append(e.attrib['Include'])),
-    'ClInclude': (lambda e, proj: proj.headers.append(e.attrib['Include'])),
-})
-
-
-def prop_group(root, project):
-    pass
-
-project_parser = mk({
-    'ItemGroup': item_group_parser,
-    'PropertyGroup': prop_group,
-})
+def parse_tree(tree):
+    parser = Parser()
+    return parser.parse(tree)
 
 
 tree = ET.parse('test_proj.vcxproj.xml')
-root = tree.getroot()
-
-project = Project([], [])
-
-project_parser(root, project)
+project = parse_tree(tree)
 
 print project.sources
 print project.headers
