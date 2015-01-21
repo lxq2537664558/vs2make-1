@@ -6,28 +6,36 @@ Project = namedtuple('Project', ['sources', 'headers'])
 
 class Parser:
     project = Project([], [])
+    include_f = None
 
     def check_condition(self, e):
         if 'Condition' in e.attrib:
-            print 'Checking', e.attrib['Condition'], 'for', e.tag
-        return True
+            result = e.attrib['Condition'] == "'$(Configuration)|$(Platform)'=='Debug|Win32'"
+            print 'Checking', e.attrib['Condition'], 'for', e.tag, ":", result
+            return result
+        else:
+            return True
 
     def mk(self, root, parsers):
         for child in root:
             if child.tag in parsers:
-                if self.check_condition(root):
+                if self.check_condition(child):
                     parsers[child.tag](child)
 
-    def parse_cpp(self, e):
-        self.project.sources.append(e.attrib['Include'])
-
-    def parse_h(self, e):
-        self.project.headers.append(e.attrib['Include'])
+    def parse_file(self, e, include_f):
+        # Ugly ugly ugly hack: don't know how to assign from inside of lambda
+        exclude = []
+        parsers = {
+            'ExcludedFromBuild': lambda child: exclude.append('Fuck')
+        }
+        self.mk(e, parsers)
+        if not exclude:
+            include_f(e.attrib['Include'])
 
     def parse_item_group(self, e):
         parsers = {
-            'ClCompile': self.parse_cpp,
-            'ClInclude': self.parse_h,
+            'ClCompile': lambda child: self.parse_file(child, lambda name: self.project.sources.append(name)),
+            'ClInclude': lambda child: self.parse_file(child, lambda name: self.project.headers.append(name)),
         }
         self.mk(e, parsers)
 
